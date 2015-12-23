@@ -1,0 +1,77 @@
+#!/usr/bin/env node
+/* ================================================================
+ * debug-tool by xdf(xudafeng[at]126.com)
+ *
+ * first created at : Wed Dec 23 2015 16:01:31 GMT+0800 (CST)
+ *
+ * ================================================================
+ * Copyright 2013 xdf
+ *
+ * Licensed under the MIT License
+ * You may not use this file except in compliance with the License.
+ *
+ * ================================================================ */
+
+'use strict';
+
+var path = require('path');
+var readline = require('readline');
+
+var cwd = process.cwd();
+var rl = readline.createInterface(process.stdin, process.stdout);
+
+try {
+  var beforeScript = require(path.join(cwd, 'debug-before'));
+  beforeScript();
+} catch (e) {
+
+}
+
+rl.setPrompt('> ');
+rl.prompt();
+
+var codeStack = [];
+var multiLine = false;
+
+rl.on('line', function(line) {
+  var willExec = !multiLine;
+  codeStack.push(line);
+
+  if (line.endsWith('{')) {
+    multiLine = true;
+    rl.setPrompt('... ');
+    willExec = false;
+  }
+
+  if (line.endsWith('}')) {
+    multiLine = false;
+    rl.setPrompt('> ');
+    willExec = true;
+    line = codeStack.join('\n');
+  }
+
+  if (willExec) {
+    try {
+      var execResult = global.eval(line);
+      if (execResult && typeof execResult.then === 'function') {
+        execResult.then(function(arg) {
+          console.log(arg)
+        }, function(err) {
+          console.log(err)
+        })
+      }
+      else {
+        console.log(execResult)
+      }
+    }
+    catch (e) {
+      console.log(e);
+    }
+    codeStack.length = 0;
+  }
+
+  rl.prompt();
+
+}).on('close', function() {
+  process.exit(0);
+});
